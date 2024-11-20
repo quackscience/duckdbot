@@ -5,15 +5,11 @@ on:
       post:
         type: string
         required: true
-      service:
-        type: string
   workflow_call:
     inputs:
       post:
         type: string
         required: true
-      service:
-        type: string
     secrets:
       BSKY_IDENTIFIER:
         required: true
@@ -27,7 +23,6 @@ jobs:
       - uses: zentered/bluesky-post-action@v0.1.0
         with:
           post: ${{ inputs.post }}
-          service: ${{ inputs.post || 'https://bsky.social' }}
         env:
           BSKY_IDENTIFIER: ${{ secrets.BSKY_IDENTIFIER }}
           BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
