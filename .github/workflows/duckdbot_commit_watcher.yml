@@ -18,12 +18,19 @@ jobs:
       - name: Checkout this repository
         uses: actions/checkout@v4
 
+      - name: Download last commit state
+        uses: actions/download-artifact@v3
+        with:
+          name: last-commit-state
+          path: state
+
       - name: Set up environment and state
         run: |
           mkdir -p state
           if [ ! -f state/last_commit.txt ]; then
             echo "null" > state/last_commit.txt
           fi
+          echo "restarting from $(cat state/last_commit.txt)"
 
       - name: Clone remote repository
         run: |
