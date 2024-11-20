@@ -1,5 +1,4 @@
-name: Post on Bluesky Social
-
+name: Post-on-Bluesky
 on:
   workflow_call:
     inputs:
