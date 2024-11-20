@@ -79,9 +79,10 @@ jobs:
             message=$(echo $commit | jq -r '.message')
             
             # Format the post content
-            post_content="New Commit by $author on $date\n\n$message\n\nLink: https://github.com/duckdb/duckdb/commit/$commit_hash"
+            post_content="New Commit by $author on $date: $message https://github.com/duckdb/duckdb/commit/$commit_hash"
             
             # Trigger Bluesky post workflow
+            sleep $((1 + RANDOM % 3))
             gh workflow run Post-on-Bluesky \
               --ref main \
               -f post="$post_content"
