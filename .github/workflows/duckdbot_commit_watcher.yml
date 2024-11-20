@@ -23,12 +23,12 @@ jobs:
       - name: Download latest artifact (last-commit-state)
         run: |
           # Fetch the latest artifact URL using the GitHub API
-          ARTIFACT_URL=$(curl -H "Accept: application/vnd.github+json" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -s $ARTIFACT_API_URL | jq '[.artifacts[] | {name : .name, archive_download_url : .archive_download_url}]' | jq -r '.[] | .archive_download_url')
+          ARTIFACT_URL=$(curl -H "Accept: application/vnd.github+json" -s $ARTIFACT_API_URL | jq '[.artifacts[] | {name : .name, archive_download_url : .archive_download_url}]' | jq -r '.[] | .archive_download_url')
           
           # If no artifact is found, just continue (i.e., no prior state)
           if [ "$ARTIFACT_URL" != "null" ]; then
             echo "Downloading artifact from $ARTIFACT_URL"
-            curl -L -o artifact.zip "$ARTIFACT_URL"  # Download the artifact
+            curl -H "Accept: application/vnd.github+json" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -L -o artifact.zip "$ARTIFACT_URL"  # Download the artifact
 
             # Extract the downloaded artifact
             mkdir -p state
