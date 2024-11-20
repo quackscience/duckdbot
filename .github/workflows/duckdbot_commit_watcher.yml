@@ -82,7 +82,7 @@ jobs:
             post_content="New Commit by $author on $date\n\n$message\n\nLink: https://github.com/duckdb/duckdb/commit/$commit_hash"
             
             # Trigger Bluesky post workflow
-            gh workflow run Post-on-Bluesky-Social \
+            gh workflow run Post-on-Bluesky \
               --ref main \
               -f post="$post_content"
           done
