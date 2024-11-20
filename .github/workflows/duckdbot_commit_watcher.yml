@@ -32,7 +32,7 @@ jobs:
 
             # Extract the downloaded artifact
             mkdir -p state
-            tar -xzf artifact.tar.gz -C state
+            unzip -q artifact.zip -d state  # Unzip the artifact to 'state' directory
             echo "Artifact extracted to state/"
 
           else
