@@ -3,4 +3,4 @@
 
 # DuckdBot
 
-Posting DuckDB Commits on [bsky](https://bsky.app/profile/duckdbot.bsky.social)
+Unofficial Quacket posting DuckDB commits on [bsky](https://bsky.app/profile/duckdbot.bsky.social)
