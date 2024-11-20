@@ -1,0 +1,25 @@
+name: Post on Bluesky Social
+
+on:
+  workflow_call:
+    inputs:
+      post:
+        type: string
+        required: true
+    secrets:
+      BSKY_IDENTIFIER:
+        required: true
+      BSKY_PASSWORD:
+        required: true
+
+jobs:
+  bsky-post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: zentered/bluesky-post-action@v0.0.1
+        with:
+          post: ${{ inputs.post }}
+          service: ${{ inputs.service }}
+        env:
+          BSKY_IDENTIFIER: ${{ secrets.BSKY_IDENTIFIER }}
+          BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
