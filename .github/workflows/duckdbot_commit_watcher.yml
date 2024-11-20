@@ -3,7 +3,7 @@ name: DuckDB Commit Watcher
 on:
   workflow_dispatch:
   schedule:
-    - cron: '10 * * * *' # Runs every hour
+    - cron: '0 */2 * * *' # Runs every couple hours
 
 jobs:
   fetch_new_commits:
@@ -81,7 +81,7 @@ jobs:
           echo "$LATEST_COMMIT" > ../state/last_commit.txt
 
       - name: Save state for next run
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: last-commit-state
           path: state
