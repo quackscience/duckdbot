@@ -23,7 +23,7 @@ jobs:
       - name: Download latest artifact (last-commit-state)
         run: |
           # Fetch the latest artifact URL using the GitHub API
-          ARTIFACT_URL=$(curl -s $ARTIFACT_API_URL | jq -r '.[0].archive_download_url')
+          ARTIFACT_URL=$(curl -s $ARTIFACT_API_URL | jq '[.artifacts[] | {name : .name, archive_download_url : .archive_download_url}]' | jq -r '.[] | .archive_download_url')
           
           # If no artifact is found, just continue (i.e., no prior state)
           if [ "$ARTIFACT_URL" != "null" ]; then
