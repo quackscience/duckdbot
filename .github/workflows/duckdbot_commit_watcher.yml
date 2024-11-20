@@ -65,3 +65,21 @@ jobs:
         id: output
         run: |
           cat new_commits.json
+
+      - name: Iterate over commits and call Bluesky post workflow
+        run: |
+          cat new_commits.json | jq -c '.[] | .[]' | while read commit; do
+            # Extract fields
+            commit_hash=$(echo $commit | jq -r '.commit')
+            author=$(echo $commit | jq -r '.author')
+            date=$(echo $commit | jq -r '.date')
+            message=$(echo $commit | jq -r '.message')
+            
+            # Format the post content
+            post_content="New Commit by $author on $date\n\n$message\n\nLink: https://github.com/duckdb/duckdb/commit/$commit_hash"
+            
+            # Trigger Bluesky post workflow
+            gh workflow run Post-on-Bluesky-Social \
+              --ref main \
+              -f post="$post_content"
+          done
