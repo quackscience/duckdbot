@@ -18,11 +18,26 @@ jobs:
       - name: Checkout this repository
         uses: actions/checkout@v4
 
-      - name: Download last commit state
-        uses: actions/download-artifact@v3
-        with:
-          name: last-commit-state
-          path: state
+      - name: Download latest artifact (last-commit-state)
+        run: |
+          # Fetch the latest artifact URL using the GitHub API
+          ARTIFACT_URL=$(curl -s $ARTIFACT_API_URL | jq -r '.[0].archive_download_url')
+          
+          # If no artifact is found, just continue (i.e., no prior state)
+          if [ "$ARTIFACT_URL" != "null" ]; then
+            echo "Downloading artifact from $ARTIFACT_URL"
+            curl -L -o artifact.tar.gz "$ARTIFACT_URL"  # Download the artifact
+
+            # Extract the downloaded artifact
+            mkdir -p state
+            tar -xzf artifact.tar.gz -C state
+            echo "Artifact extracted to state/"
+
+          else
+            echo "No previous artifact found. Starting fresh."
+          fi
+
+          cat state/last_commit.txt
 
       - name: Set up environment and state
         run: |
