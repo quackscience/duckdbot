@@ -41,10 +41,10 @@ jobs:
           LAST_PROCESSED=$(cat ../state/last_commit.txt)
           if [ "$LAST_PROCESSED" = "null" ]; then
             # First run: limit to the most recent $COMMIT_LIMIT commits
-            git log origin/$DEFAULT_BRANCH -n $COMMIT_LIMIT --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"}' | jq -s '.' > ../commits.json
+            git log $DEFAULT_BRANCH -n $COMMIT_LIMIT --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"}' | jq -s '.' > ../commits.json
           else
             # Fetch only new commits since the last processed commit
-            git log $LAST_PROCESSED..origin/$DEFAULT_BRANCH --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"}' | jq -s '.' > ../commits.json
+            git log $LAST_PROCESSED..$DEFAULT_BRANCH --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"}' | jq -s '.' > ../commits.json
           fi
           echo "["$(cat ../commits.json)"]" | jq '.' > ../new_commits.json
 
@@ -64,7 +64,7 @@ jobs:
       - name: Output new commits as JSON
         id: output
         run: |
-          echo "::set-output name=commits::$(cat new_commits.json)"
+          echo "commits=$(cat new_commits.json)" >> $GITHUB_ENV
 
       - name: Display new commits
-        run: echo "${{ steps.output.outputs.commits }}"
+        run: echo "${{ env.commits }}"
