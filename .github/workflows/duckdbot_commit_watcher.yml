@@ -1,4 +1,4 @@
-name: Pull Remote Changes and Collect New Commits
+name: DuckDB Commit Watcher
 
 on:
   workflow_dispatch:
