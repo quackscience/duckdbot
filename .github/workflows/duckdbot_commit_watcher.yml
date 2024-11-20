@@ -11,7 +11,8 @@ jobs:
 
     env:
       REMOTE_REPO_URL: "https://github.com/duckdb/duckdb.git" # Remote repository URL
-      COMMIT_LIMIT: 100                                    # Limit for the first run
+      COMMIT_LIMIT: 10
+      
 
     steps:
       - name: Checkout this repository
@@ -67,6 +68,8 @@ jobs:
           cat new_commits.json
 
       - name: Iterate over commits and call Bluesky post workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           cat new_commits.json | jq -c '.[] | .[]' | while read commit; do
             # Extract fields
