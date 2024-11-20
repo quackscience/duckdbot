@@ -28,7 +28,7 @@ jobs:
         run: |
           git clone --bare $REMOTE_REPO_URL remote-repo
           cd remote-repo
-          git fetch origin
+          git fetch
           # Detect the default branch dynamically
           DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | awk '{print $NF}')
           echo "Default branch is $DEFAULT_BRANCH"
