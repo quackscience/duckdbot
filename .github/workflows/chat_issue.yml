@@ -23,11 +23,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install hugchat
 
-      - name: Create cookies directory
-        run: mkdir -p cookies
-
       - name: Create HugChat CLI script
         run: |
+          mkdir -p cookies
           cat > hugchat_cli.py << 'EOL'
           #!/usr/bin/env python3
           
@@ -100,13 +98,13 @@ jobs:
           RESPONSE=$(python hugchat_cli.py --web-search "$ISSUE_BODY")
           
           # Create a formatted comment with the response
-          COMMENT="👋 Hello! Here's a response from HugChat:
+          COMMENT="👋 Hello! Here's a response from DuckDBot:
 
           ---
           $RESPONSE
           ---
 
-          *Note: I am a bot powered by HugChat. Please verify any information provided.*"
+          *Note: I am a bot powered by Huggingface. Please verify any information provided.*"
           
           # Post the comment to the issue
           gh issue comment ${{ github.event.issue.number }} --body "$COMMENT"
