@@ -94,7 +94,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HUGCHAT_EMAIL: ${{ secrets.HUGCHAT_EMAIL }}
           HUGCHAT_PASSWORD: ${{ secrets.HUGCHAT_PASSWORD }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_BODY: ${{ github.event.comment.body || github.event.issue.body }}
         run: |
           # Generate response using HugChat
           RESPONSE=$(python hugchat_cli.py --web-search "$ISSUE_BODY")
