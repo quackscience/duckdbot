@@ -3,7 +3,7 @@ name: DuckDB Commit Watcher
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *' # Runs every hour
+    - cron: '10 * * * *' # Runs every hour
 
 jobs:
   fetch_new_commits:
