@@ -1,7 +1,7 @@
 name: HugChat Issue Response
 on:
   issues:
-    types: [opened]
+    types: [opened, edited]
 
 jobs:
   respond-to-issue:
