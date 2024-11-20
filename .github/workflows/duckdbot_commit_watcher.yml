@@ -41,10 +41,10 @@ jobs:
           LAST_PROCESSED=$(cat ../state/last_commit.txt)
           if [ "$LAST_PROCESSED" = "null" ]; then
             # First run: limit to the most recent $COMMIT_LIMIT commits
-            git log origin/$DEFAULT_BRANCH -n $COMMIT_LIMIT --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"},' > ../commits.json
+            git log $DEFAULT_BRANCH -n $COMMIT_LIMIT --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"},' > ../commits.json
           else
             # Fetch only new commits since the last processed commit
-            git log $LAST_PROCESSED..origin/$DEFAULT_BRANCH --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"},' > ../commits.json
+            git log $LAST_PROCESSED..$DEFAULT_BRANCH --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"},' > ../commits.json
           fi
           echo "["$(cat ../commits.json)"]" | jq '.' > ../new_commits.json
 
@@ -52,7 +52,7 @@ jobs:
         run: |
           cd remote-repo
           DEFAULT_BRANCH=$(cat ../state/default_branch.txt)
-          LATEST_COMMIT=$(git rev-parse origin/$DEFAULT_BRANCH)
+          LATEST_COMMIT=$(git rev-parse $DEFAULT_BRANCH)
           echo "$LATEST_COMMIT" > ../state/last_commit.txt
 
       - name: Save state for next run
