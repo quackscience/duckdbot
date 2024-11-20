@@ -64,7 +64,4 @@ jobs:
       - name: Output new commits as JSON
         id: output
         run: |
-          echo "commits=$(cat new_commits.json)" >> $GITHUB_ENV
-
-      - name: Display new commits
-        run: echo "${{ env.commits }}"
+          cat new_commits.json
