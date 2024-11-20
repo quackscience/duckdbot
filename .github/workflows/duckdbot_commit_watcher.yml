@@ -3,7 +3,6 @@ name: Pull Remote Changes and Collect New Commits
 on:
   schedule:
     - cron: '0 * * * *' # Runs every hour
-  workflow_dispatch:
 
 jobs:
   fetch_new_commits:
@@ -11,7 +10,6 @@ jobs:
 
     env:
       REMOTE_REPO_URL: "https://github.com/duckdb/duckdb.git" # Remote repository URL
-      BRANCH: "main"                                       # Branch to monitor
       COMMIT_LIMIT: 100                                    # Limit for the first run
 
     steps:
@@ -30,31 +28,37 @@ jobs:
           git clone --bare $REMOTE_REPO_URL remote-repo
           cd remote-repo
           git fetch origin
+          # Detect the default branch dynamically
+          DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | awk '{print $NF}')
+          echo "Default branch is $DEFAULT_BRANCH"
+          echo $DEFAULT_BRANCH > ../state/default_branch.txt
 
       - name: Fetch new commits with limits
         run: |
           cd remote-repo
+          DEFAULT_BRANCH=$(cat ../state/default_branch.txt)
           LAST_PROCESSED=$(cat ../state/last_commit.txt)
           if [ "$LAST_PROCESSED" = "null" ]; then
             # First run: limit to the most recent $COMMIT_LIMIT commits
-            git log origin/$BRANCH -n $COMMIT_LIMIT --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"},' > ../commits.json
+            git log origin/$DEFAULT_BRANCH -n $COMMIT_LIMIT --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"},' > ../commits.json
           else
             # Fetch only new commits since the last processed commit
-            git log $LAST_PROCESSED..origin/$BRANCH --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"},' > ../commits.json
+            git log $LAST_PROCESSED..origin/$DEFAULT_BRANCH --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"},' > ../commits.json
           fi
           echo "["$(cat ../commits.json)"]" | jq '.' > ../new_commits.json
 
       - name: Update last processed commit
         run: |
           cd remote-repo
-          LATEST_COMMIT=$(git rev-parse origin/$BRANCH)
+          DEFAULT_BRANCH=$(cat ../state/default_branch.txt)
+          LATEST_COMMIT=$(git rev-parse origin/$DEFAULT_BRANCH)
           echo "$LATEST_COMMIT" > ../state/last_commit.txt
 
       - name: Save state for next run
         uses: actions/upload-artifact@v3
         with:
           name: last-commit-state
-          path: state/last_commit.txt
+          path: state
 
       - name: Output new commits as JSON
         id: output
