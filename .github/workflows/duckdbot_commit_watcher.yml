@@ -106,7 +106,7 @@ jobs:
             post_content="New DuckDB Commit by $author on $date: $message https://github.com/duckdb/duckdb/commit/$commit_hash"
             
             # Trigger Bluesky post workflow
-            sleep $((1 + RANDOM % 3))
+            sleep $((1 + RANDOM % 9))
             gh workflow run Post-on-Bluesky \
               --ref main \
               -f post="$post_content"
