@@ -11,7 +11,7 @@ jobs:
 
     env:
       REMOTE_REPO_URL: "https://github.com/duckdb/duckdb.git" # Remote repository URL
-      COMMIT_LIMIT: 10
+      COMMIT_LIMIT: 50
       
 
     steps:
