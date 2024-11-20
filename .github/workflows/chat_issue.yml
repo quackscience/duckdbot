@@ -100,13 +100,11 @@ jobs:
           RESPONSE=$(python hugchat_cli.py --web-search "$ISSUE_BODY")
           
           # Create a formatted comment with the response
-          COMMENT="👋 Hello! Here's a response from DuckDBot:
+          COMMENT="👋 Hello! 
 
-          ---
           $RESPONSE
-          ---
 
-          *Note: I am a bot powered by Huggingface. Please verify any information provided.*"
+          > I am a bot powered by Huggingface. Please verify any information provided."
           
           # Post the comment to the issue
           gh issue comment ${{ github.event.issue.number }} --body "$COMMENT"
