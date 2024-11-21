@@ -1,0 +1,29 @@
+name: atfile
+on:
+  workflow_call:
+    secrets:
+      ATPROTO_USERNAME:
+        required: true
+        description: "Atproto username.bsky.team or did:plc"
+      ATPROTO_PASSWORD:
+        required: true
+        description: "Atproto password"
+
+jobs:
+  atfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install atfile
+        shell: bash
+        run: |
+          curl -sSL https://raw.githubusercontent.com/electricduck/atfile/refs/heads/main/atfile-install.sh | bash
+  
+      - name: Configure credentials 
+        shell: bash
+        env:
+          ATFILE_USERNAME: ${{ secrets.ATPROTO_USERNAME }}
+          ATFILE_PASSWORD: ${{ secrets.ATPROTO_PASSWORD }}
+        run: |
+          mkdir -p ~/.config
+          echo "ATFILE_USERNAME=\"$ATFILE_USERNAME\"" > ~/.config/atfile.env
+          echo "ATFILE_PASSWORD=\"$ATFILE_PASSWORD\"" >> ~/.config/atfile.env
