@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       announce:
-        description: "Set to 'true' to announce new extensions, 'false' to only sync data."
+        description: "Set to 'true' to announce new or updated extensions, 'false' to only sync data."
         required: false
         default: "true"
   schedule:
-    - cron: '0 */6 * * *' # Runs every six hours
+    - cron: '0 */6 * * *'
 
 jobs:
   fetch_new_extensions:
@@ -25,9 +25,6 @@ jobs:
       - name: Set up state directory
         run: |
           mkdir -p ${{ env.STATE_DIR }}
-          if [ ! -f ${{ env.STATE_DIR }}/last_directories.json ]; then
-            echo "[]" > ${{ env.STATE_DIR }}/last_directories.json
-          fi
           echo "State directory initialized."
 
       - name: Clone remote repository
@@ -36,43 +33,75 @@ jobs:
           cd remote-repo
           git fetch
 
-      - name: Find new directories in `extensions/`
+      - name: Parse and stash `description.yml` files
         run: |
           cd remote-repo/extensions
-          # List all top-level directories under 'extensions/'
-          NEW_DIRECTORIES=$(ls -d */ | sed 's#/##' | jq -R -s -c 'split("\n")[:-1]')
-          
-          # Load previously seen directories
-          PREVIOUS_DIRECTORIES=$(cat ../../${{ env.STATE_DIR }}/last_directories.json)
-          
-          # Find new directories
-          NEW_ENTRIES=$(echo $NEW_DIRECTORIES $PREVIOUS_DIRECTORIES | jq -n --argjson new "$NEW_DIRECTORIES" --argjson old "$PREVIOUS_DIRECTORIES" '$new - $old')
-          
-          # Save new state
-          echo "$NEW_DIRECTORIES" > ../../${{ env.STATE_DIR }}/last_directories.json
-          echo "$NEW_ENTRIES" > ../../${{ env.STATE_DIR }}/new_directories.json
-          cat ../../${{ env.STATE_DIR }}/new_directories.json
+          mkdir -p ../../${{ env.STATE_DIR }}
 
-      - name: Conditionally Announce New Community Extensions
+          # Iterate through each extension directory
+          for dir in */; do
+            extension_name=${dir%/}
+            echo "Processing $extension_name"
+
+            # Check if description.yml exists
+            if [ -f "$dir/description.yml" ]; then
+              # Read version from the current description.yml
+              version=$(yq e '.extension.version' "$dir/description.yml")
+
+              # Create directory for this extension's state
+              mkdir -p ../../${{ env.STATE_DIR }}/$extension_name
+              stashed_description="../../${{ env.STATE_DIR }}/$extension_name/description.yml"
+
+              # Compare with the stashed version (if exists)
+              if [ -f "$stashed_description" ]; then
+                stashed_version=$(yq e '.extension.version' "$stashed_description")
+              else
+                stashed_version="none"
+              fi
+
+              # Save the current description.yml to the state directory
+              cp "$dir/description.yml" "$stashed_description"
+
+              # Check if the extension is new or updated
+              if [ "$version" != "$stashed_version" ]; then
+                echo "$extension_name: New or updated version detected (current: $version, previous: $stashed_version)"
+                echo "$extension_name" >> ../../${{ env.STATE_DIR }}/updated_extensions.txt
+              fi
+            else
+              echo "$extension_name: No description.yml found."
+            fi
+          done
+
+      - name: Announce new or updated extensions
         if: inputs.announce == 'true'
         run: |
-          cat ${{ env.STATE_DIR }}/new_directories.json | jq -r '.[]' | while read directory; do
-            # Format the post content with the URL
-            url="https://duckdb.org/community_extensions/extensions/${directory}.html"
-            post_content="🎉 New DuckDB Community Extension: $directory - $url"
-            
-            # Announce on Bluesky or other platform
-            echo "$post_content"
-            sleep $((1 + RANDOM % 5))
-            gh workflow run Post-on-Bluesky \
-              --ref main \
-              -f post="$post_content"
-          done
+          if [ -f ${{ env.STATE_DIR }}/updated_extensions.txt ]; then
+            cat ${{ env.STATE_DIR }}/updated_extensions.txt | while read extension_name; do
+              # Read the description.yml for details
+              description_file="${{ env.STATE_DIR }}/$extension_name/description.yml"
+              name=$(yq e '.extension.name' "$description_file")
+              description=$(yq e '.extension.description' "$description_file")
+              version=$(yq e '.extension.version' "$description_file")
+              github=$(yq e '.repo.github' "$description_file")
+              url="https://duckdb.org/community_extensions/extensions/${extension_name}.html"
+
+              # Format the post content
+              post_content="🎉 New Community Extension: $name ($version) $url"
+              echo "$post_content"
+
+              # Announce the update (e.g., via Bluesky or other platform)
+              gh workflow run Post-on-Bluesky \
+                --ref main \
+                -f post="$post_content"
+            done
+          else
+            echo "No new or updated extensions to announce."
+          fi
 
       - name: Commit and push state updates
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add ${{ env.STATE_DIR }}
-          git commit -m "Update state for new community extensions" || echo "No changes to commit"
+          git commit -m "Update state for community extensions" || echo "No changes to commit"
           git push
