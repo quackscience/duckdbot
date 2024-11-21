@@ -1,0 +1,78 @@
+name: Community Extensions Watcher
+
+on:
+  workflow_dispatch:
+    inputs:
+      announce:
+        description: "Set to 'true' to announce new extensions, 'false' to only sync data."
+        required: false
+        default: "true"
+  schedule:
+    - cron: '0 */6 * * *' # Runs every six hours
+
+jobs:
+  fetch_new_extensions:
+    runs-on: ubuntu-latest
+
+    env:
+      REMOTE_REPO_URL: "https://github.com/duckdb/community-extensions.git"
+      STATE_DIR: "extensions/"
+
+    steps:
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+
+      - name: Set up state directory
+        run: |
+          mkdir -p ${{ env.STATE_DIR }}
+          if [ ! -f ${{ env.STATE_DIR }}/last_directories.json ]; then
+            echo "[]" > ${{ env.STATE_DIR }}/last_directories.json
+          fi
+          echo "State directory initialized."
+
+      - name: Clone remote repository
+        run: |
+          git clone ${{ env.REMOTE_REPO_URL }} remote-repo
+          cd remote-repo
+          git fetch
+
+      - name: Find new directories in `extensions/`
+        run: |
+          cd remote-repo/extensions
+          # List all top-level directories under 'extensions/'
+          NEW_DIRECTORIES=$(ls -d */ | sed 's#/##' | jq -R -s -c 'split("\n")[:-1]')
+          
+          # Load previously seen directories
+          PREVIOUS_DIRECTORIES=$(cat ../../${{ env.STATE_DIR }}/last_directories.json)
+          
+          # Find new directories
+          NEW_ENTRIES=$(echo $NEW_DIRECTORIES $PREVIOUS_DIRECTORIES | jq -n --argjson new "$NEW_DIRECTORIES" --argjson old "$PREVIOUS_DIRECTORIES" '$new - $old')
+          
+          # Save new state
+          echo "$NEW_DIRECTORIES" > ../../${{ env.STATE_DIR }}/last_directories.json
+          echo "$NEW_ENTRIES" > ../../${{ env.STATE_DIR }}/new_directories.json
+          cat ../../${{ env.STATE_DIR }}/new_directories.json
+
+      - name: Conditionally Announce New Community Extensions
+        if: inputs.announce == 'true'
+        run: |
+          cat ${{ env.STATE_DIR }}/new_directories.json | jq -r '.[]' | while read directory; do
+            # Format the post content with the URL
+            url="https://duckdb.org/community_extensions/extensions/${directory}.html"
+            post_content="🎉 New DuckDB Community Extension: $directory - $url"
+            
+            # Announce on Bluesky or other platform
+            echo "$post_content"
+            sleep $((1 + RANDOM % 5))
+            gh workflow run Post-on-Bluesky \
+              --ref main \
+              -f post="$post_content"
+          done
+
+      - name: Commit and push state updates
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add ${{ env.STATE_DIR }}
+          git commit -m "Update state for new community extensions" || echo "No changes to commit"
+          git push
