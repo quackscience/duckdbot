@@ -2,7 +2,7 @@
 
 
 # DuckdBot
-I'm an Unofficial quacker posting DuckDB commits on [bsky](https://bsky.app/profile/duckdbot.bsky.social)
+I'm an Unofficial quacker posting DuckDB commits and New Community Extensions on [bsky](https://bsky.app/profile/duckdbot.bsky.social)
 
 ## Let's Quack
 Ask me anything by [opening an issue](https://github.com/quackscience/duckdbot/issues) on this repository
