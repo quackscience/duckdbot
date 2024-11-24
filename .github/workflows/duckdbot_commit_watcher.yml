@@ -3,18 +3,17 @@ name: DuckDB Commit Watcher
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */2 * * *' # Runs every couple hours
+    - cron: '0 */2 * * *'
 
 jobs:
   fetch_new_commits:
     runs-on: ubuntu-latest
 
     env:
-      REMOTE_REPO_URL: "https://github.com/duckdb/duckdb.git" # Remote repository URL
+      REMOTE_REPO_URL: "https://github.com/duckdb/duckdb.git"
       COMMIT_LIMIT: 50
+      MAX_POSTS: 15
       ARTIFACT_API_URL: "https://api.github.com/repos/quackscience/duckdbot/actions/artifacts?per_page=1"
-
-      
 
     steps:
       - name: Checkout this repository
@@ -22,24 +21,19 @@ jobs:
 
       - name: Download latest artifact (last-commit-state)
         run: |
-          # Fetch the latest artifact URL using the GitHub API
-          ARTIFACT_URL=$(curl -H "Accept: application/vnd.github+json" -s $ARTIFACT_API_URL | jq '[.artifacts[] | {name : .name, archive_download_url : .archive_download_url}]' | jq -r '.[] | .archive_download_url')
+          ARTIFACT_URL=$(curl -H "Accept: application/vnd.github+json" -s $ARTIFACT_API_URL | jq -r '.artifacts[] | select(.name=="last-commit-state").archive_download_url // empty')
           
-          # If no artifact is found, just continue (i.e., no prior state)
-          if [ "$ARTIFACT_URL" != "null" ]; then
+          if [ -n "$ARTIFACT_URL" ]; then
             echo "Downloading artifact from $ARTIFACT_URL"
-            curl -H "Accept: application/vnd.github+json" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -L -o artifact.zip "$ARTIFACT_URL"  # Download the artifact
-
-            # Extract the downloaded artifact
+            curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -L -o artifact.zip "$ARTIFACT_URL"
             mkdir -p state
-            unzip -q artifact.zip -d state  # Unzip the artifact to 'state' directory
+            unzip -q artifact.zip -d state
             echo "Artifact extracted to state/"
-
           else
             echo "No previous artifact found. Starting fresh."
+            mkdir -p state
+            echo "null" > state/last_commit.txt
           fi
-
-          cat state/last_commit.txt
 
       - name: Set up environment and state
         run: |
@@ -47,14 +41,13 @@ jobs:
           if [ ! -f state/last_commit.txt ]; then
             echo "null" > state/last_commit.txt
           fi
-          echo "restarting from $(cat state/last_commit.txt)"
+          echo "Restarting from commit: $(cat state/last_commit.txt)"
 
       - name: Clone remote repository
         run: |
           git clone --bare $REMOTE_REPO_URL remote-repo
           cd remote-repo
           git fetch
-          # Detect the default branch dynamically
           DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | awk '{print $NF}')
           echo "Default branch is $DEFAULT_BRANCH"
           echo $DEFAULT_BRANCH > ../state/default_branch.txt
@@ -64,21 +57,25 @@ jobs:
           cd remote-repo
           DEFAULT_BRANCH=$(cat ../state/default_branch.txt)
           LAST_PROCESSED=$(cat ../state/last_commit.txt)
+          
           if [ "$LAST_PROCESSED" = "null" ]; then
-            # First run: limit to the most recent $COMMIT_LIMIT commits
             git log $DEFAULT_BRANCH -n $COMMIT_LIMIT --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"}' | jq -s '.' > ../commits.json
           else
-            # Fetch only new commits since the last processed commit
-            git log $LAST_PROCESSED..$DEFAULT_BRANCH --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"}' | jq -s '.' > ../commits.json
+            git log --reverse $LAST_PROCESSED..$DEFAULT_BRANCH --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"}' | jq -s '.' > ../commits.json
           fi
-          echo "["$(cat ../commits.json)"]" | jq '.' > ../new_commits.json
+
+          echo "Limiting to $MAX_POSTS commits:"
+          cat ../commits.json | jq '.[0:'$MAX_POSTS']' > ../new_commits.json
+          echo "Capped new commits:"
+          cat ../new_commits.json
 
       - name: Update last processed commit
         run: |
           cd remote-repo
           DEFAULT_BRANCH=$(cat ../state/default_branch.txt)
-          LATEST_COMMIT=$(git rev-parse $DEFAULT_BRANCH)
+          LATEST_COMMIT=$(git log $DEFAULT_BRANCH -n 1 --pretty=format:'%H')
           echo "$LATEST_COMMIT" > ../state/last_commit.txt
+          echo "Updated last processed commit to $LATEST_COMMIT"
 
       - name: Save state for next run
         uses: actions/upload-artifact@v4
@@ -89,25 +86,41 @@ jobs:
       - name: Output new commits as JSON
         id: output
         run: |
-          cat new_commits.json
+          cat ../new_commits.json
 
       - name: Iterate over commits and call Bluesky post workflow
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cat new_commits.json | jq -c '.[] | .[]' | while read commit; do
-            # Extract fields
+          MAX_POSTS=${{ env.MAX_POSTS }}
+          POST_COUNT=0
+
+          cat ../new_commits.json | jq -c '.[]' | while read commit; do
+            if [ $POST_COUNT -ge $MAX_POSTS ]; then
+              echo "Max post limit ($MAX_POSTS) reached. Exiting loop."
+              break
+            fi
+
             commit_hash=$(echo $commit | jq -r '.commit')
             author=$(echo $commit | jq -r '.author')
             date=$(echo $commit | jq -r '.date')
             message=$(echo $commit | jq -r '.message')
-            
-            # Format the post content
+
             post_content="New DuckDB Commit by $author on $date: $message https://github.com/duckdb/duckdb/commit/$commit_hash"
             
-            # Trigger Bluesky post workflow
+            echo "Posting: $post_content"
             sleep $((1 + RANDOM % 9))
             gh workflow run Post-on-Bluesky \
               --ref main \
               -f post="$post_content"
+            
+            POST_COUNT=$((POST_COUNT + 1))
           done
+
+      - name: Safeguard check
+        if: success()
+        run: |
+          if [ $(cat ../new_commits.json | jq length) -gt ${{ env.MAX_POSTS }} ]; then
+            echo "Warning: Commit processing exceeded the max limit!"
+            exit 1
+          fi
