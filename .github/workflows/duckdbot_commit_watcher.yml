@@ -86,7 +86,8 @@ jobs:
       - name: Output new commits as JSON
         id: output
         run: |
-          cat ../new_commits.json
+          
+          cat new_commits.json
 
       - name: Iterate over commits and call Bluesky post workflow
         env:
@@ -95,7 +96,7 @@ jobs:
           MAX_POSTS=${{ env.MAX_POSTS }}
           POST_COUNT=0
 
-          cat ../new_commits.json | jq -c '.[]' | while read commit; do
+          cat new_commits.json | jq -c '.[]' | while read commit; do
             if [ $POST_COUNT -ge $MAX_POSTS ]; then
               echo "Max post limit ($MAX_POSTS) reached. Exiting loop."
               break
@@ -120,7 +121,7 @@ jobs:
       - name: Safeguard check
         if: success()
         run: |
-          if [ $(cat ../new_commits.json | jq length) -gt ${{ env.MAX_POSTS }} ]; then
+          if [ $(cat new_commits.json | jq length) -gt ${{ env.MAX_POSTS }} ]; then
             echo "Warning: Commit processing exceeded the max limit!"
             exit 1
           fi
