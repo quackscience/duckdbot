@@ -27,3 +27,4 @@ shellfs
 tarfs
 ulid
 webmacro
+hostfs
