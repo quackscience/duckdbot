@@ -28,3 +28,4 @@ tarfs
 ulid
 webmacro
 hostfs
+http_client
