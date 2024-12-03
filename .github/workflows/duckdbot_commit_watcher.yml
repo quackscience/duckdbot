@@ -53,23 +53,39 @@ jobs:
           echo $DEFAULT_BRANCH > ../state/default_branch.txt
 
       - name: Fetch new commits with limits
+        id: fetch_commits
         run: |
           cd remote-repo
           DEFAULT_BRANCH=$(cat ../state/default_branch.txt)
           LAST_PROCESSED=$(cat ../state/last_commit.txt)
           
           if [ "$LAST_PROCESSED" = "null" ]; then
-            git log $DEFAULT_BRANCH -n $COMMIT_LIMIT --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"}' | jq -s '.' > ../commits.json
+            git log $DEFAULT_BRANCH -n $COMMIT_LIMIT --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":%s}' | \
+            sed 's/\\/\\\\/g' | \
+            jq -R 'fromjson?' | \
+            jq -s 'map(select(. != null))' > ../commits.json
           else
-            git log --reverse $LAST_PROCESSED..$DEFAULT_BRANCH --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":"%s"}' | jq -s '.' > ../commits.json
+            git log --reverse $LAST_PROCESSED..$DEFAULT_BRANCH --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":%s}' | \
+            sed 's/\\/\\\\/g' | \
+            jq -R 'fromjson?' | \
+            jq -s 'map(select(. != null))' > ../commits.json
           fi
-
+          
+          # Check if commits.json is empty or contains empty array
+          if [ ! -s ../commits.json ] || [ "$(cat ../commits.json | jq 'length')" -eq 0 ]; then
+            echo "No new commits found. Exiting workflow."
+            echo "has_commits=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
           echo "Limiting to $MAX_POSTS commits:"
           cat ../commits.json | jq '.[0:'$MAX_POSTS']' > ../new_commits.json
           echo "Capped new commits:"
           cat ../new_commits.json
+          echo "has_commits=true" >> $GITHUB_OUTPUT
 
       - name: Update last processed commit
+        if: steps.fetch_commits.outputs.has_commits == 'true'
         run: |
           cd remote-repo
           DEFAULT_BRANCH=$(cat ../state/default_branch.txt)
@@ -78,35 +94,28 @@ jobs:
           echo "Updated last processed commit to $LATEST_COMMIT"
 
       - name: Save state for next run
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: last-commit-state
           path: state
 
-      - name: Output new commits as JSON
-        id: output
-        run: |
-          
-          cat new_commits.json
-
       - name: Iterate over commits and call Bluesky post workflow
+        if: steps.fetch_commits.outputs.has_commits == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           MAX_POSTS=${{ env.MAX_POSTS }}
           POST_COUNT=0
-
           cat new_commits.json | jq -c '.[]' | while read commit; do
             if [ $POST_COUNT -ge $MAX_POSTS ]; then
               echo "Max post limit ($MAX_POSTS) reached. Exiting loop."
               break
             fi
-
             commit_hash=$(echo $commit | jq -r '.commit')
             author=$(echo $commit | jq -r '.author')
             date=$(echo $commit | jq -r '.date')
             message=$(echo $commit | jq -r '.message')
-
             post_content="New DuckDB Commit by $author on $date: $message https://github.com/duckdb/duckdb/commit/$commit_hash"
             
             echo "Posting: $post_content"
@@ -119,7 +128,7 @@ jobs:
           done
 
       - name: Safeguard check
-        if: success()
+        if: steps.fetch_commits.outputs.has_commits == 'true'
         run: |
           if [ $(cat new_commits.json | jq length) -gt ${{ env.MAX_POSTS }} ]; then
             echo "Warning: Commit processing exceeded the max limit!"
