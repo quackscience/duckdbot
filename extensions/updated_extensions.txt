@@ -29,3 +29,4 @@ ulid
 webmacro
 hostfs
 http_client
+httpserver
