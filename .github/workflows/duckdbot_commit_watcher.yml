@@ -12,7 +12,7 @@ jobs:
     env:
       REMOTE_REPO_URL: "https://github.com/duckdb/duckdb.git"
       COMMIT_LIMIT: 50
-      MAX_POSTS: 15
+      MAX_POSTS: 25
       ARTIFACT_API_URL: "https://api.github.com/repos/quackscience/duckdbot/actions/artifacts?per_page=1"
 
     steps:
