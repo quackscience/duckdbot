@@ -31,3 +31,4 @@ hostfs
 http_client
 httpserver
 http_client
+avro
