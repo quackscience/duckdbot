@@ -69,12 +69,19 @@ jobs:
           DEFAULT_BRANCH=$(cat ../state/default_branch.txt)
           LAST_PROCESSED=$(cat ../state/last_commit.txt)
           
+          if ! git rev-parse "$LAST_PROCESSED" >/dev/null 2>&1; then
+            echo "Warning: Invalid or missing commit hash in last_commit.txt ($LAST_PROCESSED). Restarting from latest commits."
+            LAST_PROCESSED="null"
+          fi
+          
           if [ "$LAST_PROCESSED" = "null" ]; then
+            echo "Fetching the last $COMMIT_LIMIT commits from $DEFAULT_BRANCH"
             git log $DEFAULT_BRANCH -n $COMMIT_LIMIT --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":%s}' | \
             sed 's/\\/\\\\/g' | \
             jq -R 'fromjson?' | \
             jq -s 'map(select(. != null))' > ../commits.json
           else
+            echo "Fetching commits from $LAST_PROCESSED to $DEFAULT_BRANCH"
             git log --reverse $LAST_PROCESSED..$DEFAULT_BRANCH --pretty=format:'{"commit":"%H","author":"%an","date":"%ad","message":%s}' | \
             sed 's/\\/\\\\/g' | \
             jq -R 'fromjson?' | \
