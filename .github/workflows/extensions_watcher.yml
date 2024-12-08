@@ -74,6 +74,8 @@ jobs:
 
       - name: Announce new or updated extensions
         if: inputs.announce == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ -f ${{ env.STATE_DIR }}/updated_extensions.txt ]; then
             cat ${{ env.STATE_DIR }}/updated_extensions.txt | while read extension_name; do
