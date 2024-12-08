@@ -1,7 +1,7 @@
 extension:
   name: pcap_reader
   description: Read PCAP files from DuckDB
-  version: 0.0.1
+  version: 0.0.2
   language: Rust
   build: cmake
   license: MIT
