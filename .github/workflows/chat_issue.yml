@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: read
+      contents: read
     
     steps:
       - name: Checkout repository
@@ -95,6 +96,8 @@ jobs:
 
       - name: Extract and cleanup conversation
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           HUGCHAT_EMAIL: ${{ secrets.HUGCHAT_EMAIL }}
           HUGCHAT_PASSWORD: ${{ secrets.HUGCHAT_PASSWORD }}
         run: |
